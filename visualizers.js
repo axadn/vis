@@ -292,7 +292,11 @@ defineVisualizer('movingBlob', 'Frequency-based blobs in the center that give th
 	}
 });
 
-const small_flame_settings = {
+const DENSE_FLAMES = 1;
+const SPARSE_FLAMES = 2;
+const PARTICLE_3 = 3;
+
+const sparse_flame_settings = {
 	COLD_COLOR_AGE: 12,
 	MED_COLOR_AGE: 3,
 	HOT_COLOR: [0,0,50,1],
@@ -303,16 +307,55 @@ const small_flame_settings = {
 	MAX_INIT_UP: 0.04,
 	INIT_UP_RAND: 0.01,
 	INIT_X_RAND: 0.005,
-	PARTICLE_SIZE: 0.02
+	PARTICLE_SIZE: 0.02,
+	type: SPARSE_FLAMES
 };
 
-const SMALL_FLAMES = 1;
-const BIG_FLAMES = 2;
+const dense_flame_settings = {
+	COLD_COLOR_AGE: 12,
+	MED_COLOR_AGE: 4,
+	HOT_COLOR: [255,255,255,1],
+	MED_COLOR: [180,200,250,1],
+	COLD_COLOR: [50, 235, 100, 0.4],
+	DEATH_AGE: 12,
+	FULL_AMP_SPAWN_COUNT: 400,
+	MAX_INIT_UP: 0.04,
+	INIT_UP_RAND: 0.038,
+	INIT_X_RAND: 0.005,
+	PARTICLE_SIZE: 0.006,
+	type: DENSE_FLAMES
+};
+
+const particle_3_settings = {
+	COLD_COLOR_AGE: 12,
+	MED_COLOR_AGE: 3,
+	HOT_COLOR: [255,255,255,1],
+	MED_COLOR: [200,180,220,1],
+	COLD_COLOR: [80, 80, 255, 0.4],
+	DEATH_AGE: 12,
+	FULL_AMP_SPAWN_COUNT:	 1,
+	MAX_INIT_UP: 0.07,
+	INIT_UP_RAND: 0.01,
+	INIT_X_RAND: 0,
+	type: PARTICLE_3
+};
+
+defineVisualizer('sparse flames', 'flame-like visualization',function(plot, frequencies, width, height, velocity, frameIndex){
+	flameParticles(plot, frequencies, width, height, velocity, frameIndex, sparse_flame_settings);
+});
+defineVisualizer('dense flames', 'denser flame-like visualization(a little heavy for real-time)',function(plot, frequencies, width, height, velocity, frameIndex){
+	flameParticles(plot, frequencies, width, height, velocity, frameIndex, dense_flame_settings);
+});
+
 const particleSystem = {
 	head: null,
 	tail: null,
 	pool: []
 };
+function clearParticleSystem(){
+	particleSystem.head = null;
+	particleSystem.tail = null;
+}
 function addParticle(position, velocity){
 	if(particleSystem.pool.length == 0){
 		particle = {};
@@ -360,7 +403,7 @@ function updateParticle(particle){
 }
 
 function createParticleTransparencyMap(width){
-	const size = parseInt(width * small_flame_settings.PARTICLE_SIZE);
+	const size = parseInt(width * sparse_flame_settings.PARTICLE_SIZE);
 	let row;
 	let map = [];
 	let transparency;
@@ -377,17 +420,21 @@ function createParticleTransparencyMap(width){
 	}
 	return map;
 }
-let particleTransparencyMap;
 
-defineVisualizer('particles1', 'flame-like visualization',function(plot, frequencies, width, height, velocity, frameIndex){
+function flameParticles(plot, frequencies, width, height, velocity, frameIdx, settings){
+	if(particleSystem.type != settings.type){
+		particleSystem.type = settings.type;
+		clearParticleSystem();
+	}
 	const flameWidth = 1 / frequencies.length;
 	for(let flameIdx = 0; flameIdx < frequencies.length; ++ flameIdx){
-		for(let i = 0; i < Math.floor(frequencies[flameIdx] * small_flame_settings.FULL_AMP_SPAWN_COUNT); ++i){
+		for(let i = 0; i < Math.floor(frequencies[flameIdx] * settings.FULL_AMP_SPAWN_COUNT); ++i){
 			addParticle(
-				[flameIdx * flameWidth + Math.random() * flameWidth, 0],
-				[-1 * Math.random() * small_flame_settings.INIT_X_RAND +
-					2 * Math.random() * small_flame_settings.INIT_X_RAND,
-					small_flame_settings.MAX_INIT_UP *frequencies[flameIdx] + Math.random() * small_flame_settings.INIT_UP_RAND
+				[flameIdx * flameWidth + Math.random() * flameWidth,
+					0],
+				[-1 * Math.random() * settings.INIT_X_RAND +
+					2 * Math.random() * settings.INIT_X_RAND,
+					settings.MAX_INIT_UP *frequencies[flameIdx] - 	settings.INIT_UP_RAND * Math.random() * frequencies[flameIdx]
 				],
 			);
 		}
@@ -397,19 +444,19 @@ defineVisualizer('particles1', 'flame-like visualization',function(plot, frequen
 	let color = [0,0,0,0]
 	let colorLerpAmount;
 	let formattedColor;
-	let particleRenderedSize = small_flame_settings.PARTICLE_SIZE * width;
+	let particleRenderedSize = settings.PARTICLE_SIZE * width;
 	while(particle !== null){
-		if(particle.age <= small_flame_settings.MED_COLOR_AGE){
-			colorLerpAmount = particle.age / small_flame_settings.MED_COLOR_AGE;
+		if(particle.age <= settings.MED_COLOR_AGE){
+			colorLerpAmount = particle.age / settings.MED_COLOR_AGE;
 			for(let i = 0; i < 4 ; ++i){
-				color[i] =  (1 - colorLerpAmount) * small_flame_settings.HOT_COLOR[i] + colorLerpAmount * small_flame_settings.MED_COLOR[i];
+				color[i] =  (1 - colorLerpAmount) * settings.HOT_COLOR[i] + colorLerpAmount * settings.MED_COLOR[i];
 			}
 		}
 		else{
-			colorLerpAmount = (particle.age - small_flame_settings.MED_COLOR_AGE) / (small_flame_settings.COLD_COLOR_AGE - small_flame_settings.MED_COLOR_AGE);
+			colorLerpAmount = (particle.age - settings.MED_COLOR_AGE) / (settings.COLD_COLOR_AGE - settings.MED_COLOR_AGE);
 			colorLerpAmount = Math.min(colorLerpAmount, 1);
 			for(let i = 0; i < 4 ; ++i){
-				color[i] =  (1 - colorLerpAmount) * small_flame_settings.MED_COLOR[i] + colorLerpAmount * small_flame_settings.COLD_COLOR[i];
+				color[i] =  (1 - colorLerpAmount) * settings.MED_COLOR[i] + colorLerpAmount * settings.COLD_COLOR[i];
 			}
 		}
 		color[0] = Math.floor(color[0]);
@@ -425,34 +472,26 @@ defineVisualizer('particles1', 'flame-like visualization',function(plot, frequen
 		
 		updateParticle(particle);
 		nextParticle = particle.next;
-		if(particle.age >= small_flame_settings.DEATH_AGE){
+		if(particle.age >= settings.DEATH_AGE){
 			killParticle(particle);			
 		}
 		particle = nextParticle;
 	}
-});
-const big_flame_settings = {
-	COLD_COLOR_AGE: 12,
-	MED_COLOR_AGE: 3,
-	HOT_COLOR: [255,255,255,1],
-	MED_COLOR: [200,180,220,1],
-	COLD_COLOR: [80, 80, 255, 0.4],
-	DEATH_AGE: 12,
-	FULL_AMP_SPAWN_COUNT:	 1,
-	MAX_INIT_UP: 0.07,
-	INIT_UP_RAND: 0.01,
-	INIT_X_RAND: 0,
-};
+}
 defineVisualizer('particles2', 'another particle system',function(plot, frequencies, width, height, velocity, frameIndex){
+	if(particleSystem.type != PARTICLE_3){
+		particleSystem.type = PARTICLE_3;
+		clearParticleSystem();
+	}
 	const flameWidth = 1 / frequencies.length;
 	for(let flameIdx = 0; flameIdx < frequencies.length; ++ flameIdx){
 		for(let i = 0; i < Math.round(frequencies[flameIdx] *
-			 big_flame_settings.FULL_AMP_SPAWN_COUNT); ++i){
+			 particle_3_settings.FULL_AMP_SPAWN_COUNT); ++i){
 			addParticle(
 				[flameIdx * flameWidth, 0],
-				[-1 * Math.random() * big_flame_settings.INIT_X_RAND +
-					2 * Math.random() * big_flame_settings.INIT_X_RAND,
-					big_flame_settings.MAX_INIT_UP *frequencies[flameIdx] + Math.random() * big_flame_settings.INIT_UP_RAND
+				[-1 * Math.random() * particle_3_settings.INIT_X_RAND +
+					2 * Math.random() * particle_3_settings.INIT_X_RAND,
+					particle_3_settings.MAX_INIT_UP *frequencies[flameIdx] + Math.random() * particle_3_settings.INIT_UP_RAND
 				],
 			);
 		}
@@ -468,22 +507,22 @@ defineVisualizer('particles2', 'another particle system',function(plot, frequenc
 			for(let particleY = 0; particleY < particleRenderedSize; ++particleY){
 				plot(parseInt(flameIdx * width * flameWidth + particleX),
 					parseInt(particleY),
-					`rgba(${big_flame_settings.HOT_COLOR.join(",")})`);
+					`rgba(${particle_3_settings.HOT_COLOR.join(",")})`);
 			}
 		}
 	}
 	while(particle !== null){
-		if(particle.age <= big_flame_settings.MED_COLOR_AGE){ 
-			colorLerpAmount = particle.age / big_flame_settings.MED_COLOR_AGE;
+		if(particle.age <= particle_3_settings.MED_COLOR_AGE){ 
+			colorLerpAmount = particle.age / particle_3_settings.MED_COLOR_AGE;
 			for(let i = 0; i < 4 ; ++i){
-				color[i] =  (1 - colorLerpAmount) * big_flame_settings.HOT_COLOR[i] + colorLerpAmount * big_flame_settings.MED_COLOR[i];
+				color[i] =  (1 - colorLerpAmount) * particle_3_settings.HOT_COLOR[i] + colorLerpAmount * particle_3_settings.MED_COLOR[i];
 			}
 		}
 		else{
-			colorLerpAmount = (particle.age - big_flame_settings.MED_COLOR_AGE) / (big_flame_settings.COLD_COLOR_AGE - big_flame_settings.MED_COLOR_AGE);
+			colorLerpAmount = (particle.age - particle_3_settings.MED_COLOR_AGE) / (particle_3_settings.COLD_COLOR_AGE - particle_3_settings.MED_COLOR_AGE);
 			colorLerpAmount = Math.min(colorLerpAmount, 1);
 			for(let i = 0; i < 4 ; ++i){
-				color[i] =  (1 - colorLerpAmount) * big_flame_settings.MED_COLOR[i] + colorLerpAmount * big_flame_settings.COLD_COLOR[i];
+				color[i] =  (1 - colorLerpAmount) * particle_3_settings.MED_COLOR[i] + colorLerpAmount * particle_3_settings.COLD_COLOR[i];
 			}
 		}
 		color[0] = Math.floor(color[0]);
@@ -499,7 +538,7 @@ defineVisualizer('particles2', 'another particle system',function(plot, frequenc
 		
 		updateParticle(particle);
 		nextParticle = particle.next;
-		if(particle.age >= big_flame_settings.DEATH_AGE){
+		if(particle.age >= particle_3_settings.DEATH_AGE){
 			killParticle(particle);			
 		}
 		particle = nextParticle;
