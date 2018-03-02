@@ -72,10 +72,8 @@ var startVisualizer = function(e) {
 
 		// display frame on canvas
 		var ctx = canvas.getContext('2d');
-
-		ctx.clearRect(0, 0, width, height);
-		ctx.fillStyle = 'black';
-		ctx.fillRect(0,0,width,height);
+		ctx.fillStyle = "black";
+		ctx.fillRect(0, 0, width, height);
 
 		function plot(x, y, color) {
 			ctx.fillStyle = color;

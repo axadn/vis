@@ -293,26 +293,36 @@ defineVisualizer('movingBlob', 'Frequency-based blobs in the center that give th
 });
 
 const coldColorAge = 12;
-const medColorAge = 2;
-const hotColor = [60, 80, 255,1];
-const medColor = [220,200,180,0.9];
-const coldColor = [255, 100, 100,0.1];
+const medColorAge = 5;
+const hotColor = [20, 30, 90,1];
+const medColor = [220,200,180,1];
+const coldColor = [255, 80, 80,0.4];
 const deathAge = 12;
-const fullParticleSpawnCount = 12;
+const fullParticleSpawnCount = 45;
 const maxParticleVelocityUp = 0.04;
 const maxParticleVelocityX = 0.005;
 const particleUpAcceleration = 0.005;
 const initUpVelocRand = 0.01;
-const particleSize = 7;
+const particleSize = 0.015;
 
 const minDragAmount = 0.1;
 const maxDragAmount = 0.2;
 
 const particleSystem = {
 	head: null,
-	tail: null
+	tail: null,
+	pool: []
 };
-function addParticle(particle){
+function addParticle(position, velocity){
+	if(particleSystem.pool.length == 0){
+		particle = {};
+	}
+	else{
+		particle = particleSystem.pool.pop();
+	}
+	particle.velocity = velocity;
+	particle.position = position;
+	particle.age = 0;
 	if(particleSystem.head === null){
 		particleSystem.head = particle;
 		particleSystem.tail = particle;
@@ -325,6 +335,7 @@ function addParticle(particle){
 	particleSystem.tail.next = null;
 }
 function killParticle(particle){
+	particleSystem.pool.push(particle);
 	if(particle !== particleSystem.head && particle !== particleSystem.tail){
 		particle.prev.next = particle.next;
 		particle.next.prev = particle.prev;
@@ -349,40 +360,44 @@ function updateParticle(particle){
 }
 
 function createParticleTransparencyMap(width){
-	const particleSize = width *0.001;
+	const size = parseInt(width * particleSize);
 	let row;
 	let map = [];
-	for(let x = 0; x < particleSize; ++ x){
+	let transparency;
+	let dist;
+	const center = size/2;
+	for(let x = 0; x < size; ++ x){
 		row = [];
-		for(let y = 0; y< particleSize; ++y){
-
+		for(let y = 0; y< size; ++y){
+			dist = Math.sqrt(Math.pow(center - x, 2) + Math.pow(center - y, 2));
+			transparency = Math.min(Math.pow(dist * 2 / size, 2), 1);
+			row.push(1 - transparency);
 		}
 		map.push(row);
 	}
 	return map;
 }
 let particleTransparencyMap;
+
 defineVisualizer('particles1', 'flame-like visualization',function(plot, frequencies, width, height, velocity, frameIndex){
-	particleTransparencyMap = particleTransparencyMap || createParticleTransparencyMap();
 	const flameWidth = 1 / frequencies.length;
 	for(let flameIdx = 0; flameIdx < frequencies.length; ++ flameIdx){
 		for(let i = 0; i < Math.floor(frequencies[flameIdx] * fullParticleSpawnCount); ++i){
-			addParticle({
-				position: [flameIdx * flameWidth + Math.random() * flameWidth, 0],
-				age: 0,
-				velocity: [-1 * Math.random() * maxParticleVelocityX +
-					 2 * Math.random() * maxParticleVelocityX,
+			addParticle(
+				[flameIdx * flameWidth + Math.random() * flameWidth, 0],
+				[-1 * Math.random() * maxParticleVelocityX +
+					2 * Math.random() * maxParticleVelocityX,
 					maxParticleVelocityUp *frequencies[flameIdx] + Math.random() * initUpVelocRand
-					],
-				acceleration: [0, particleUpAcceleration]
-			});
+				],
+			);
 		}
 	}
 	let particle = particleSystem.head;	
 	let nextParticle;
-	let color = [0,0,0]
+	let color = [0,0,0,0]
 	let colorLerpAmount;
 	let formattedColor;
+	let particleRenderedSize = particleSize * width;
 	while(particle !== null){
 		if(particle.age <= medColorAge){
 			colorLerpAmount = particle.age / medColorAge;
@@ -397,11 +412,14 @@ defineVisualizer('particles1', 'flame-like visualization',function(plot, frequen
 				color[i] =  (1 - colorLerpAmount) * medColor[i] + colorLerpAmount * coldColor[i];
 			}
 		}
+		color[0] = Math.floor(color[0]);
+		color[1] = Math.floor(color[1]);
+		color[2] = Math.floor(color[2]);
 		formattedColor = `rgba(${color.join(",")})`;
-		for(let particleX = 0; particleX < particleSize; ++particleX){
-			for(let particleY = 0; particleY < particleSize; ++particleY){
+		for(let particleX = 0; particleX < particleRenderedSize ; ++particleX){
+			for(let particleY = 0; particleY < particleRenderedSize; ++particleY){
 				plot(parseInt(particle.position[0] * width) + particleX,
-		 			parseInt(particle.position[1] * height) + particleY, formattedColor);
+				 	parseInt(particle.position[1] * height) + particleY, formattedColor);
 			}
 		}
 		
