@@ -292,16 +292,17 @@ defineVisualizer('movingBlob', 'Frequency-based blobs in the center that give th
 	}
 });
 
-const coldColorAge = 20;
-const medColorAge = 5;
+const coldColorAge = 12;
+const medColorAge = 2;
 const hotColor = [60, 80, 255,1];
 const medColor = [220,200,180,0.9];
 const coldColor = [255, 100, 100,0.1];
-const deathAge = 20;
+const deathAge = 12;
 const fullParticleSpawnCount = 12;
-const maxParticleVelocityUp = 0.02;
+const maxParticleVelocityUp = 0.04;
 const maxParticleVelocityX = 0.005;
-const particleUpAcceleration = 0.002;
+const particleUpAcceleration = 0.005;
+const initUpVelocRand = 0.01;
 const particleSize = 7;
 
 const minDragAmount = 0.1;
@@ -367,11 +368,11 @@ defineVisualizer('particles1', 'flame-like visualization',function(plot, frequen
 	for(let flameIdx = 0; flameIdx < frequencies.length; ++ flameIdx){
 		for(let i = 0; i < Math.floor(frequencies[flameIdx] * fullParticleSpawnCount); ++i){
 			addParticle({
-				position: [flameIdx * flameWidth + Math.random() * flameWidth,0],
+				position: [flameIdx * flameWidth + Math.random() * flameWidth, 0],
 				age: 0,
 				velocity: [-1 * Math.random() * maxParticleVelocityX +
 					 2 * Math.random() * maxParticleVelocityX,
-					maxParticleVelocityUp
+					maxParticleVelocityUp *frequencies[flameIdx] + Math.random() * initUpVelocRand
 					],
 				acceleration: [0, particleUpAcceleration]
 			});
