@@ -291,3 +291,124 @@ defineVisualizer('movingBlob', 'Frequency-based blobs in the center that give th
 		}
 	}
 });
+
+const coldColorAge = 20;
+const medColorAge = 5;
+const hotColor = [60, 80, 255,1];
+const medColor = [220,200,180,0.9];
+const coldColor = [255, 100, 100,0.1];
+const deathAge = 20;
+const fullParticleSpawnCount = 12;
+const maxParticleVelocityUp = 0.02;
+const maxParticleVelocityX = 0.005;
+const particleUpAcceleration = 0.002;
+const particleSize = 7;
+
+const minDragAmount = 0.1;
+const maxDragAmount = 0.2;
+
+const particleSystem = {
+	head: null,
+	tail: null
+};
+function addParticle(particle){
+	if(particleSystem.head === null){
+		particleSystem.head = particle;
+		particleSystem.tail = particle;
+	}
+	else{
+		particle.prev = particleSystem.tail;
+		particleSystem.tail.next = particle;
+		particleSystem.tail = particle;
+	}
+	particleSystem.tail.next = null;
+}
+function killParticle(particle){
+	if(particle !== particleSystem.head && particle !== particleSystem.tail){
+		particle.prev.next = particle.next;
+		particle.next.prev = particle.prev;
+	}
+	else if(particle === particleSystem.head){
+		particleSystem.head = particleSystem.head.next;
+		if(particleSystem.head !== null){
+			particleSystem.head.prev = null;
+		}
+	}
+	else{
+		particleSystem.tail = particleSystem.tail.prev;
+		if(particleSystem.tail !== null){
+			particleSystem.tail.next = null;
+		}
+	}
+}
+function updateParticle(particle){
+	++particle.age;
+	particle.position[0] += particle.velocity[0];
+	particle.position[1] += particle.velocity[1];
+}
+
+function createParticleTransparencyMap(width){
+	const particleSize = width *0.001;
+	let row;
+	let map = [];
+	for(let x = 0; x < particleSize; ++ x){
+		row = [];
+		for(let y = 0; y< particleSize; ++y){
+
+		}
+		map.push(row);
+	}
+	return map;
+}
+let particleTransparencyMap;
+defineVisualizer('particles1', 'flame-like visualization',function(plot, frequencies, width, height, velocity, frameIndex){
+	particleTransparencyMap = particleTransparencyMap || createParticleTransparencyMap();
+	const flameWidth = 1 / frequencies.length;
+	for(let flameIdx = 0; flameIdx < frequencies.length; ++ flameIdx){
+		for(let i = 0; i < Math.floor(frequencies[flameIdx] * fullParticleSpawnCount); ++i){
+			addParticle({
+				position: [flameIdx * flameWidth + Math.random() * flameWidth,0],
+				age: 0,
+				velocity: [-1 * Math.random() * maxParticleVelocityX +
+					 2 * Math.random() * maxParticleVelocityX,
+					maxParticleVelocityUp
+					],
+				acceleration: [0, particleUpAcceleration]
+			});
+		}
+	}
+	let particle = particleSystem.head;	
+	let nextParticle;
+	let color = [0,0,0]
+	let colorLerpAmount;
+	let formattedColor;
+	while(particle !== null){
+		if(particle.age <= medColorAge){
+			colorLerpAmount = particle.age / medColorAge;
+			for(let i = 0; i < 4 ; ++i){
+				color[i] =  (1 - colorLerpAmount) * hotColor[i] + colorLerpAmount * medColor[i];
+			}
+		}
+		else{
+			colorLerpAmount = (particle.age - medColorAge) / (coldColorAge - medColorAge);
+			colorLerpAmount = Math.min(colorLerpAmount, 1);
+			for(let i = 0; i < 4 ; ++i){
+				color[i] =  (1 - colorLerpAmount) * medColor[i] + colorLerpAmount * coldColor[i];
+			}
+		}
+		formattedColor = `rgba(${color.join(",")})`;
+		for(let particleX = 0; particleX < particleSize; ++particleX){
+			for(let particleY = 0; particleY < particleSize; ++particleY){
+				plot(parseInt(particle.position[0] * width) + particleX,
+		 			parseInt(particle.position[1] * height) + particleY, formattedColor);
+			}
+		}
+		
+		updateParticle(particle);
+		nextParticle = particle.next;
+		if(particle.age >= deathAge){
+			killParticle(particle);			
+		}
+		particle = nextParticle;
+	}
+});
